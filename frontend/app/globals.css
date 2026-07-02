@@ -1,0 +1,372 @@
+@import "tailwindcss";
+
+/* ── CSS Design Tokens — Outside @layer for top specificity ── */
+:root {
+  --bg-base: #050505;
+  --bg-surface: rgba(20, 20, 20, 0.6);
+  --bg-elevated: rgba(30, 30, 30, 0.85);
+  --bg-overlay: rgba(255, 255, 255, 0.03);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-bright: rgba(255, 255, 255, 0.16);
+  --text-primary: #ffffff;
+  --text-secondary: #86868b;
+  --text-muted: #555555;
+  --accent: #FF3B30;
+  --accent-hover: #ff453a;
+  --accent-glow: rgba(255, 59, 48, 0.3);
+  --accent-subtle: rgba(255, 59, 48, 0.1);
+  --success: #34c759;
+  --warning: #ff9f0a;
+  --danger: #ff3b30;
+  --radius: 18px;
+  --radius-sm: 12px;
+  --radius-lg: 28px;
+  --font-mono: ui-monospace, SFMono-Regular, SF Pro Text, Menlo, Monaco, Consolas, monospace;
+}
+
+html[data-theme='light'] {
+  --bg-base: #f5f5f7;
+  --bg-surface: rgba(255, 255, 255, 0.65);
+  --bg-elevated: rgba(255, 255, 255, 0.92);
+  --bg-overlay: rgba(0, 0, 0, 0.02);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-bright: rgba(0, 0, 0, 0.14);
+  --text-primary: #1d1d1f;
+  --text-secondary: #555559;
+  --text-muted: #a0a0a5;
+  --accent: #FF3B30;
+  --accent-hover: #e30613;
+  --accent-glow: rgba(255, 59, 48, 0.2);
+  --accent-subtle: rgba(255, 59, 48, 0.06);
+  --success: #24b243;
+  --warning: #e08e00;
+  --danger: #e30613;
+}
+
+/* ensure background/color always tracks data-theme */
+html {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  transition: background-color 0.35s ease, color 0.35s ease;
+}
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: background-color 0.35s ease, color 0.35s ease;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: white;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+}
+
+@layer components {
+  /* ── Nothing Tech Dot Matrix Background ── */
+  .dot-grid {
+    background-color: var(--bg-base);
+    background-image: radial-gradient(var(--border) 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+    background-position: center;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+  }
+
+  /* ── Apple-like Glass Card ── */
+  .glass {
+    background: var(--bg-surface);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .glass-bright {
+    background: var(--bg-elevated);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border: 1px solid var(--border-bright);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  /* ── Premium Glow animations ── */
+  .glow-accent {
+    box-shadow: 0 0 24px var(--accent-glow), 0 0 48px rgba(255, 59, 48, 0.1);
+  }
+
+  .glow-accent-subtle {
+    box-shadow: 0 0 12px var(--accent-subtle);
+  }
+
+  /* ── Nothing Tech Signature Dot Matrix Badge ── */
+  .nothing-badge {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px dotted var(--border-bright);
+    border-radius: 99px;
+    color: var(--text-secondary);
+  }
+
+  /* ── Gradient Text ── */
+  .gradient-text {
+    background: linear-gradient(135deg, #FF6B35 0%, var(--accent) 50%, #FF2200 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Premium Buttons ── */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: var(--text-primary);
+    color: var(--bg-base);
+    border: 1px solid var(--text-primary);
+    border-radius: 99px; /* Pill-shaped like Apple/Nothing */
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .btn-primary:hover {
+    background: transparent;
+    color: var(--text-primary);
+    box-shadow: 0 0 16px var(--border-bright);
+    transform: scale(1.02);
+  }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-bright);
+    border-radius: 99px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .btn-ghost:hover {
+    background: var(--text-primary);
+    color: var(--bg-base);
+    border-color: var(--text-primary);
+  }
+  .btn-ghost:active { transform: scale(0.98); }
+
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: rgba(255, 59, 48, 0.1);
+    color: var(--danger);
+    border: 1px solid rgba(255, 59, 48, 0.2);
+    border-radius: 99px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .btn-danger:hover {
+    background: var(--danger);
+    color: white;
+    border-color: var(--danger);
+    box-shadow: 0 4px 16px rgba(255, 59, 48, 0.25);
+  }
+  .btn-danger:active { transform: scale(0.98); }
+
+  /* ── Input ── */
+  .input {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-overlay);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    transition: all 0.2s ease;
+    outline: none;
+  }
+  .input::placeholder { color: var(--text-secondary); opacity: 0.6; }
+  .input:focus {
+    border-color: var(--text-primary);
+    background: var(--bg-surface);
+    box-shadow: 0 0 0 1px var(--text-primary);
+  }
+
+  /* ── Status dot ── */
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
+  .status-dot.offline { background: var(--text-muted); }
+  .status-dot.busy { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+
+  /* ── Progress bar ── */
+  .progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--text-primary);
+    border-radius: 99px;
+    transition: width 0.3s ease;
+    position: relative;
+  }
+  .progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 60px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* ── Drop zone ── */
+  .dropzone-active {
+    border-color: var(--text-primary) !important;
+    background: var(--bg-overlay) !important;
+    box-shadow: 0 0 30px var(--border);
+  }
+}
+
+@layer utilities {
+  .text-accent { color: var(--accent); }
+  .bg-surface { background-color: var(--bg-surface); }
+  .bg-elevated { background-color: var(--bg-elevated); }
+  .border-dim { border-color: var(--border); }
+  .text-muted { color: var(--text-muted); }
+  .text-secondary-color { color: var(--text-secondary); }
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────────────── */
+@keyframes pulse-ring {
+  0% { transform: scale(0.85); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes radar-scan {
+  0% { transform: scale(0.3) rotate(0deg); opacity: 0.8; }
+  100% { transform: scale(3) rotate(360deg); opacity: 0; }
+}
+
+.animate-float { animation: float 4s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 12s linear infinite; }
+.animate-fade-in { animation: fade-in 0.4s ease forwards; }
+.animate-slide-up { animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-in-right { animation: slide-in-right 0.4s ease forwards; }
+.animate-radar { animation: radar-scan 3s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+
+/* ── Responsive Mobile Optimizations ── */
+@media (max-width: 640px) {
+  /* Restructure Header */
+  .header-actions {
+    gap: 8px !important;
+  }
+  .header-badge-text {
+    font-size: 8px !important;
+    padding: 2px 6px !important;
+    letter-spacing: 0.04em !important;
+  }
+  .header-device-name {
+    display: none !important;
+  }
+  
+  /* Restructure Main Layout */
+  .main-content {
+    padding: 0 16px 24px !important;
+  }
+  .main-content h1 {
+    font-size: 20px !important;
+    margin-bottom: 6px !important;
+  }
+  .main-content p {
+    font-size: 12px !important;
+    max-width: 320px !important;
+  }
+  
+  /* Scale Radar Orbit System to fit mobile screens beautifully */
+  .radar-container {
+    transform: scale(0.85);
+    height: 380px !important;
+    min-height: 380px !important;
+    margin-top: -30px !important;
+    margin-bottom: -30px !important;
+  }
+  
+  /* DropZone spacing */
+  .dropzone-container {
+    padding: 24px 16px !important;
+  }
+}
