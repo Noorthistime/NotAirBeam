@@ -12,17 +12,18 @@ export interface PeerInfo {
   ip: string;
   joinedAt: string;
   ws: WebSocket;
+  roomCode?: string;
 }
 
 // Map: deviceId → PeerInfo
 const peers = new Map<string, PeerInfo>();
 
-// Map: deviceId → subnet (e.g. "192.168.1")
+// Map: deviceId → subnet (e.g. "192.168.1" or "ROOM_12345")
 const subnets = new Map<string, string>();
 
 export function addPeer(peer: PeerInfo): void {
   peers.set(peer.id, peer);
-  const subnet = getSubnet(peer.ip);
+  const subnet = peer.roomCode ? `ROOM_${peer.roomCode.toUpperCase()}` : getSubnet(peer.ip);
   subnets.set(peer.id, subnet);
 }
 
@@ -118,8 +119,10 @@ function getSubnet(ip: string): string {
     // Public Network (Hosted on Render)
     const parts = cleanIp.split('.');
     if (parts.length === 4) {
-      // For Public IPv4, all devices on a router share the EXACT SAME IP
-      return cleanIp;
+      // For Public IPv4, ISPs like Jio heavily use CGNAT which rotates IPs.
+      // Grouping by the first 2 octets allows devices on the same ISP region to discover each other.
+      // This is safe because users must still explicitly "Accept" a transfer.
+      return parts.slice(0, 2).join('.');
     }
     
     // For Public IPv6, devices on the same Wi-Fi share the first 4 blocks (/64 prefix)

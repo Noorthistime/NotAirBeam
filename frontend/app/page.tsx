@@ -369,8 +369,13 @@ function DropZone({ onFiles, targetPeer }: { onFiles: (files: File[]) => void; t
 function SettingsPanel({ onClose }: { onClose: () => void }) {
   const device = useDeviceStore();
   const [name, setName] = useState(device.name);
+  const [roomCode, setRoomCode] = useState(device.roomCode || '');
 
-  const save = () => { device.setName(name.trim() || device.name); onClose(); };
+  const save = () => { 
+    device.setName(name.trim() || device.name); 
+    device.setRoomCode(roomCode.trim());
+    onClose(); 
+  };
 
   return (
     <motion.div
@@ -383,10 +388,16 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
       <motion.div initial={{ scale: 0.9, y: 15 }} animate={{ scale: 1, y: 0 }}
         className="glass-bright" style={{ maxWidth: 380, width: '100%', padding: 28 }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20, letterSpacing: '-0.01em' }}>Device Settings</h2>
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 16 }}>
           <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 8, fontFamily: 'var(--font-mono)' }}>Device Name</label>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && save()} placeholder="e.g. Noor's Laptop" maxLength={40} />
+        </div>
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 8, fontFamily: 'var(--font-mono)' }}>Private Room Code (Optional)</label>
+          <input className="input" value={roomCode} onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === 'Enter' && save()} placeholder="e.g. 12345" maxLength={10} style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }} />
+          <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 8 }}>Enter a secret code to connect securely across different networks.</p>
         </div>
         <div style={{ marginBottom: 24, padding: '12px 16px', background: 'var(--bg-overlay)', border: '1px solid var(--border)', borderRadius: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, alignItems: 'center' }}>
@@ -497,6 +508,15 @@ export default function HomePage() {
         </div>
 
         <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* Room status */}
+          {device.roomCode && (
+            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--accent-subtle)', padding: '4px 10px', borderRadius: 6, border: '1px solid var(--accent)' }}>
+              <span style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.05em', fontFamily: 'var(--font-mono)' }}>
+                ROOM: {device.roomCode}
+              </span>
+            </div>
+          )}
+
           {/* Connection status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <motion.div

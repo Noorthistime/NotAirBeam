@@ -14,8 +14,10 @@ interface DeviceState {
   os: DeviceOS;
   type: DeviceType;
   isReady: boolean;
+  roomCode?: string;
   init: () => void;
   setName: (name: string) => void;
+  setRoomCode: (code: string) => void;
 }
 
 export const useDeviceStore = create<DeviceState>()(
@@ -26,6 +28,7 @@ export const useDeviceStore = create<DeviceState>()(
       os: 'unknown',
       type: 'desktop',
       isReady: false,
+      roomCode: '',
       init: () => {
         if (get().isReady) return;
         const id = getOrCreateDeviceId();
@@ -40,10 +43,13 @@ export const useDeviceStore = create<DeviceState>()(
         }
         set({ name });
       },
+      setRoomCode: (code: string) => {
+        set({ roomCode: code.toUpperCase() });
+      },
     }),
     {
       name: 'offlinedrop_device',
-      partialize: (s) => ({ id: s.id, name: s.name, os: s.os, type: s.type }),
+      partialize: (s) => ({ id: s.id, name: s.name, os: s.os, type: s.type, roomCode: s.roomCode }),
     }
   )
 );

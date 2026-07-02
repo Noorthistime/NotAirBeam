@@ -66,10 +66,22 @@ export function handleMessage(ws: WebSocket, raw: string, clientIp: string) {
   switch (type) {
     // ── Device joins the network ────────────────────────────────────────────
     case 'PEER_JOIN': {
-      const p = payload as { name: string; type: PeerInfo['type']; os: PeerInfo['os'] };
+      const p = payload as { name: string; type: PeerInfo['type']; os: PeerInfo['os']; roomCode?: string };
       if (!from || !p.name) {
         send(ws, { type: 'ERROR', from: 'server', payload: { error: 'PEER_JOIN requires id, name' } });
         return;
+      }
+
+      // If peer already exists (e.g. changing rooms), remove them from old room
+      const existingPeer = getPeer(from);
+      if (existingPeer) {
+        const oldNearby = getPeersInSubnet(from);
+        removePeer(from);
+        broadcastToPeers(oldNearby, {
+          type: 'PEER_LEAVE',
+          from: 'server',
+          payload: { id: from },
+        });
       }
 
       const peer: PeerInfo = {
@@ -80,6 +92,7 @@ export function handleMessage(ws: WebSocket, raw: string, clientIp: string) {
         ip: clientIp,
         joinedAt: new Date().toISOString(),
         ws,
+        roomCode: p.roomCode,
       };
 
       addPeer(peer);
@@ -99,7 +112,9 @@ export function handleMessage(ws: WebSocket, raw: string, clientIp: string) {
         payload: { peer: serializePeer(peer) },
       }, from);
 
-      console.log(`[WS] PEER_JOIN: ${p.name} (${from}) from ${clientIp}`);
+      // Log join
+      const roomDesc = p.roomCode ? `ROOM_${p.roomCode.toUpperCase()}` : clientIp;
+      console.log(`[WS] PEER_JOIN: ${peer.name} (${peer.id}) in ${roomDesc}`);
       break;
     }
 
