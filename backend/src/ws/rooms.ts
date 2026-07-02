@@ -66,6 +66,21 @@ export function removeStalePeers(): number {
   return removed;
 }
 
+function isPrivateIp(ip: string): boolean {
+  if (ip === '::1' || ip === '127.0.0.1' || ip.startsWith('::ffff:127')) return true;
+  const cleanIp = ip.replace('::ffff:', '');
+  const parts = cleanIp.split('.');
+  if (parts.length === 4) {
+    const num = parseInt(parts[0], 10);
+    if (num === 10 || num === 192) return true;
+    if (num === 172) {
+      const second = parseInt(parts[1], 10);
+      if (second >= 16 && second <= 31) return true;
+    }
+  }
+  return false;
+}
+
 function getLocalSubnets(): string[] {
   const subnetsList: string[] = [];
   const interfaces = os.networkInterfaces();
@@ -85,18 +100,36 @@ function getLocalSubnets(): string[] {
 }
 
 function getSubnet(ip: string): string {
-  // For IPv4: return first 3 octets as subnet identifier
-  // For localhost/::1, treat as same subnet, mapping to host's subnet if possible
-  if (ip === '::1' || ip === '127.0.0.1' || ip.startsWith('::ffff:127')) {
-    const locals = getLocalSubnets();
-    if (locals.length > 0) {
-      return locals[0];
+  const cleanIp = ip.replace('::ffff:', '');
+  
+  if (isPrivateIp(cleanIp)) {
+    // Local / Private Network
+    if (cleanIp === '::1' || cleanIp === '127.0.0.1') {
+      const locals = getLocalSubnets();
+      if (locals.length > 0) return locals[0];
+      return 'localhost';
     }
-    return 'localhost';
+    // Group local devices by first 3 octets
+    const parts = cleanIp.split('.');
+    if (parts.length === 4) {
+      return parts.slice(0, 3).join('.');
+    }
+  } else {
+    // Public Network (Hosted on Render)
+    const parts = cleanIp.split('.');
+    if (parts.length === 4) {
+      // For Public IPv4, all devices on a router share the EXACT SAME IP
+      return cleanIp;
+    }
+    
+    // For Public IPv6, devices on the same Wi-Fi share the first 4 blocks (/64 prefix)
+    if (cleanIp.includes(':')) {
+      const v6parts = cleanIp.split(':');
+      if (v6parts.length >= 4) {
+        return v6parts.slice(0, 4).join(':');
+      }
+    }
   }
-  const parts = ip.replace('::ffff:', '').split('.');
-  if (parts.length === 4) {
-    return parts.slice(0, 3).join('.');
-  }
-  return ip; // IPv6: use full address as subnet key
+  
+  return cleanIp;
 }

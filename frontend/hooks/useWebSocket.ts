@@ -5,10 +5,14 @@ import { useDeviceStore } from '../store/deviceStore';
 import { usePeerStore } from '../store/peerStore';
 
 const getWsUrl = () => {
+  // Use Vercel environment variable in production
+  if (process.env.NEXT_PUBLIC_WS_URL) {
+    return process.env.NEXT_PUBLIC_WS_URL;
+  }
+
+  // Fallback for local development network
   if (typeof window !== 'undefined') {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // Connect directly to backend port 4000 using same hostname as the page
-    // Works for localhost (PC) and LAN IP (phone)
     return `${protocol}//${window.location.hostname}:4000/ws`;
   }
   return 'ws://localhost:4000/ws';
