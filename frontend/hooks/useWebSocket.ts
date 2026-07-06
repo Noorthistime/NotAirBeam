@@ -30,6 +30,7 @@ export function useWebSocket() {
   const handlersRef = useRef<Map<MessageType, MessageHandler[]>>(new Map());
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
+  const [reconnectTrigger, setReconnectTrigger] = useState(0);
 
   const device = useDeviceStore();
   const { setPeers, addPeer, removePeer, setDiscovering } = usePeerStore();
@@ -53,11 +54,12 @@ export function useWebSocket() {
     send({ type, from: device.clientId, to, payload });
   }, [send, device.clientId]);
 
-  const connect = useCallback(() => {
+  // Handle WebSocket connection lifecycle
+  useEffect(() => {
     if (!device.isReady || !device.clientId) return;
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const ws = new WebSocket(getWsUrl());
+    const wsUrl = getWsUrl();
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -66,15 +68,17 @@ export function useWebSocket() {
       setDiscovering(true);
 
       // Announce self
-      send({
+      ws.send(JSON.stringify({
         type: 'PEER_JOIN',
         from: device.clientId,
         payload: { name: device.name, type: device.type, os: device.os, roomCode: device.roomCode },
-      });
+      }));
 
       // Start heartbeat
       pingRef.current = setInterval(() => {
-        send({ type: 'PING', from: device.clientId, payload: { ts: Date.now() } });
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'PING', from: device.clientId, payload: { ts: Date.now() } }));
+        }
       }, PING_INTERVAL);
     };
 
@@ -102,29 +106,31 @@ export function useWebSocket() {
       }
     };
 
-    ws.onclose = () => {
+    const handleCloseOrError = () => {
       setConnected(false);
       setDiscovering(false);
       if (pingRef.current) clearInterval(pingRef.current);
+
       // Auto-reconnect
       setReconnecting(true);
-      reconnectRef.current = setTimeout(() => connect(), RECONNECT_DELAY);
+      reconnectRef.current = setTimeout(() => {
+        setReconnectTrigger((prev) => prev + 1);
+      }, RECONNECT_DELAY);
     };
 
+    ws.onclose = handleCloseOrError;
     ws.onerror = (err) => {
       console.error('[WS] Error:', err);
       ws.close();
     };
-  }, [device, send, setPeers, addPeer, removePeer, setDiscovering]);
 
-  useEffect(() => {
-    if (device.isReady) connect();
     return () => {
       if (pingRef.current) clearInterval(pingRef.current);
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
-      wsRef.current?.close();
+      ws.close();
+      wsRef.current = null;
     };
-  }, [device.isReady, connect]);
+  }, [device.isReady, device.clientId, reconnectTrigger, setPeers, addPeer, removePeer, setDiscovering]);
 
   // Handle room changes
   const lastRoomCode = useRef(device.roomCode);
@@ -139,7 +145,7 @@ export function useWebSocket() {
       // Clear peers since we changed rooms
       setPeers([]);
     }
-  }, [device.roomCode, connected, send, device, setPeers]);
+  }, [device.roomCode, connected, send, device.clientId, device.name, device.type, device.os, setPeers]);
 
   return { connected, reconnecting, send, on, emit };
 }
