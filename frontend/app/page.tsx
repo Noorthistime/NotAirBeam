@@ -7,12 +7,40 @@ import { useTransferStore } from '../store/transferStore';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useTransfer } from '../hooks/useTransfer';
 import { Peer } from '../../shared/types';
-import { formatBytes, formatSpeed, getAvatarColor, getDeviceIcon } from '../lib/deviceDetect';
+import { formatBytes, formatSpeed, getAvatarColor } from '../lib/deviceDetect';
+
+// ─── Minimalist Outline Device Icon (Nothing-inspired) ───────────────────────
+function getMinimalistDeviceIcon(os: string, type: string) {
+  const strokeColor = 'currentColor';
+  if (type === 'mobile') {
+    return (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
+        <rect x="6" y="2" width="12" height="20" rx="3" />
+        <path d="M12 18h.01" />
+      </svg>
+    );
+  }
+  if (type === 'tablet') {
+    return (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M12 16h.01" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block' }}>
+      <rect x="3" y="4" width="18" height="12" rx="2" />
+      <path d="M8 20h8" />
+      <path d="M12 16v4" />
+    </svg>
+  );
+}
 
 // ─── DeviceAvatar ──────────────────────────────────────────────────────────────
 function DeviceAvatar({ peer, size = 56 }: { peer: Peer; size?: number }) {
   const color = getAvatarColor(peer.id);
-  const icon = getDeviceIcon(peer.os, peer.type);
+  const icon = getMinimalistDeviceIcon(peer.os, peer.type);
   return (
     <div
       style={{
@@ -42,20 +70,25 @@ function DeviceAvatar({ peer, size = 56 }: { peer: Peer; size?: number }) {
 
 // ─── ProgressRing ─────────────────────────────────────────────────────────────
 function ProgressRing({ progress, size = 44, color = 'var(--text-primary)' }: { progress: number; size?: number; color?: string }) {
-  const r = (size - 4) / 2;
+  const r = (size - 6) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ - (progress / 100) * circ;
   return (
-    <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--border)" strokeWidth="2.5" />
-      <circle
-        cx={size/2} cy={size/2} r={r} fill="none"
-        stroke={color} strokeWidth="2.5"
-        strokeDasharray={circ} strokeDashoffset={offset}
-        strokeLinecap="round"
-        style={{ transition: 'stroke-dashoffset 0.3s ease' }}
-      />
-    </svg>
+    <div style={{ position: 'relative', width: size, height: size, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', position: 'absolute', top: 0, left: 0 }}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--border)" strokeWidth="2" />
+        <circle
+          cx={size/2} cy={size/2} r={r} fill="none"
+          stroke={color} strokeWidth="2"
+          strokeDasharray={circ} strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dashoffset 0.3s ease' }}
+        />
+      </svg>
+      <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--text-primary)', zIndex: 1 }}>
+        {progress}
+      </span>
+    </div>
   );
 }
 
@@ -110,8 +143,13 @@ function TransferCard({ transfer }: { transfer: any }) {
             {transfer.status === 'active' && transfer.speed > 0 && ` · ${formatSpeed(transfer.speed)}`}
           </div>
           {transfer.status === 'active' && (
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${transfer.progress}%`, background: 'var(--text-primary)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="progress-bar" style={{ flex: 1 }}>
+                <div className="progress-fill" style={{ width: `${transfer.progress}%`, background: 'var(--text-primary)' }} />
+              </div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700, minWidth: 28, textAlign: 'right' }}>
+                {transfer.progress}%
+              </span>
             </div>
           )}
           {transfer.status === 'complete' && transfer.direction === 'receive' && transfer.blobUrls && (
@@ -427,6 +465,43 @@ export default function HomePage() {
   const [showSettings, setShowSettings] = useState(false);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
   const [showTransfers, setShowTransfers] = useState(false);
+
+  // Administrative Panel States
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminStats, setAdminStats] = useState<any>(null);
+
+  const fetchAdminStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/stats', {
+        headers: {
+          'x-admin-secret': 'nothing_drop_secure'
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAdminStats(data);
+      }
+    } catch (err) {
+      console.error('Failed to load admin stats:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('admin') === 'true') {
+        setIsAdmin(true);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchAdminStats();
+      const interval = setInterval(fetchAdminStats, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [isAdmin, fetchAdminStats]);
   
   // Theme Management
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
@@ -571,156 +646,224 @@ export default function HomePage() {
           <button onClick={() => setShowSettings(true)}
             style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-overlay)',
               border: '1px solid var(--border-bright)', borderRadius: '99px', padding: '4px 12px 4px 6px', cursor: 'pointer' }}>
-            <DeviceAvatar peer={{ id: device.id, name: device.name, type: device.type, os: device.os, online: true, joinedAt: '' }} size={24} />
+            <DeviceAvatar peer={{ id: device.clientId, name: device.name, type: device.type, os: device.os, online: true, joinedAt: '' }} size={24} />
             <span className="header-device-name" style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>{device.name || 'My Device'}</span>
           </button>
         </div>
       </header>
 
       {/* ── Main content ── */}
-      <main className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 24px 40px', maxWidth: 960, margin: '0 auto', width: '100%' }}>
+      <main className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 24px 40px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
 
-        {/* ── Discovery Section ── */}
-        <section style={{ width: '100%', padding: '48px 0 36px', position: 'relative' }}>
-          <div style={{ textAlign: 'center', marginBottom: 44 }}>
-            <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              style={{ fontSize: 'clamp(24px, 3.5vw, 34px)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 10 }}>
-              {peers.length === 0 ? (
-                <>Searching for <span style={{ color: 'var(--accent)' }}>nearby</span> devices…</>
-              ) : (
-                <>Found <span style={{ color: 'var(--accent)' }}>{peers.length}</span> device{peers.length > 1 ? 's' : ''} nearby</>
-              )}
-            </motion.h1>
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
-              style={{ fontSize: 14, color: 'var(--text-secondary)', maxWidth: 460, margin: '0 auto' }}>
-              All transfers happen directly on your local network · Zero internet required
-            </motion.p>
-          </div>
+        <div style={{ textAlign: 'center', marginTop: 40, marginBottom: 30 }}>
+          <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            style={{ fontSize: 'clamp(24px, 3.5vw, 34px)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 10 }}>
+            {peers.length === 0 ? (
+              <>Searching for <span style={{ color: 'var(--accent)' }}>nearby</span> devices…</>
+            ) : (
+              <>Found <span style={{ color: 'var(--accent)' }}>{peers.length}</span> device{peers.length > 1 ? 's' : ''} nearby</>
+            )}
+          </motion.h1>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
+            style={{ fontSize: 14, color: 'var(--text-secondary)', maxWidth: 460, margin: '0 auto' }}>
+            All transfers happen directly on your local network · Zero internet required
+          </motion.p>
+        </div>
 
-          {/* Radar orbit visual system - enough height to accommodate full orbit radius */}
-          <div className="radar-container" style={{ position: 'relative', minHeight: 440, height: 440, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible', flexShrink: 0 }}>
-            <RadarRings />
-
-            {/* Center: Current user identity */}
-            <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, zIndex: 2 }}>
-              <motion.div
-                animate={{
-                  scale: [1, 1.03, 1],
-                  boxShadow: [
-                    '0 0 10px 2px rgba(255, 59, 48, 0.1)',
-                    '0 0 28px 8px rgba(255, 59, 48, 0.25)',
-                    '0 0 10px 2px rgba(255, 59, 48, 0.1)'
-                  ]
-                }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                style={{ borderRadius: '50%' }}
-              >
-                <div style={{
-                  padding: 4, borderRadius: '50%', border: '2px solid var(--text-primary)',
-                  background: 'var(--bg-base)', boxShadow: '0 0 20px var(--border-bright)'
-                }}>
-                  <DeviceAvatar peer={{ id: device.id, name: device.name, type: device.type, os: device.os, online: true, joinedAt: '' }} size={76} />
-                </div>
-              </motion.div>
-              <span className="nothing-badge" style={{ fontSize: 9, padding: '1px 6px', fontWeight: 'bold' }}>YOU</span>
+        {/* ── Admin Panel Section (Conditionally Rendered) ── */}
+        {isAdmin && adminStats && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="nothing-glass"
+            style={{ padding: '20px 24px', marginBottom: 32, border: '1.5px dashed var(--accent)', position: 'relative' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="status-dot online" style={{ width: 8, height: 8, background: 'var(--accent)', boxShadow: '0 0 8px var(--accent)', animation: 'pulse 1.5s infinite' }} />
+                <span style={{ fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  NotAirBeam Admin Panel
+                </span>
+              </div>
+              <span className="nothing-badge" style={{ fontSize: 10, padding: '2px 8px' }}>
+                Uptime: {Math.round(adminStats.uptime)}s
+              </span>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
+              <div style={{ padding: 12, background: 'var(--bg-overlay)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Active Devices</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--accent)', marginTop: 4 }}>{adminStats.activePeerCount}</div>
+              </div>
+              <div style={{ padding: 12, background: 'var(--bg-overlay)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Database Users</div>
+                <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4 }}>{adminStats.totalUsers}</div>
+              </div>
+              <div style={{ padding: 12, background: 'var(--bg-overlay)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Total Recorded Transfers</div>
+                <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4 }}>{adminStats.totalTransfers}</div>
+              </div>
             </div>
 
-            {/* Orbit peers */}
+            {adminStats.activePeers && adminStats.activePeers.length > 0 ? (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left', fontFamily: 'var(--font-mono)' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-bright)', color: 'var(--text-secondary)' }}>
+                      <th style={{ padding: 8 }}>Device Name</th>
+                      <th style={{ padding: 8 }}>OS</th>
+                      <th style={{ padding: 8 }}>IP Address</th>
+                      <th style={{ padding: 8 }}>Subnet / Room Code</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {adminStats.activePeers.map((p: any) => (
+                      <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: 8, fontWeight: 600 }}>{p.name} {p.id === device.clientId && '(You)'}</td>
+                        <td style={{ padding: 8, textTransform: 'capitalize' }}>{p.os} ({p.type})</td>
+                        <td style={{ padding: 8 }}>{p.ip}</td>
+                        <td style={{ padding: 8 }}>{p.roomCode ? `ROOM: ${p.roomCode}` : 'Local Network'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', padding: 12, fontFamily: 'var(--font-mono)' }}>
+                No active peers currently online.
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        <div className="dashboard-grid">
+          {/* Column Left: Radar Orb System */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            {/* Radar orbit visual system */}
+            <div className="radar-container" style={{ position: 'relative', minHeight: 440, height: 440, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible', flexShrink: 0 }}>
+              <RadarRings />
+
+              {/* Center: Current user identity */}
+              <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, zIndex: 2 }}>
+                <motion.div
+                  animate={{
+                    scale: [1, 1.03, 1],
+                    boxShadow: [
+                      '0 0 10px 2px rgba(255, 59, 48, 0.1)',
+                      '0 0 28px 8px rgba(255, 59, 48, 0.25)',
+                      '0 0 10px 2px rgba(255, 59, 48, 0.1)'
+                    ]
+                  }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{ borderRadius: '50%' }}
+                >
+                  <div style={{
+                    padding: 4, borderRadius: '50%', border: '2px solid var(--text-primary)',
+                    background: 'var(--bg-base)', boxShadow: '0 0 20px var(--border-bright)'
+                  }}>
+                    <DeviceAvatar peer={{ id: device.clientId, name: device.name, type: device.type, os: device.os, online: true, joinedAt: '' }} size={76} />
+                  </div>
+                </motion.div>
+                <span className="nothing-badge" style={{ fontSize: 9, padding: '1px 6px', fontWeight: 'bold' }}>YOU</span>
+              </div>
+
+              {/* Orbit peers */}
+              <AnimatePresence>
+                {peers.map((peer, i) => {
+                  const totalPeers = peers.length;
+                  const angle = (i / totalPeers) * 2 * Math.PI - Math.PI / 2;
+                  const r = Math.max(150, Math.min(200, 150 + totalPeers * 10));
+                  const x = Math.cos(angle) * r;
+                  const y = Math.sin(angle) * r;
+                  return (
+                    <motion.div
+                      key={peer.id}
+                      style={{ position: 'absolute', zIndex: 3 }}
+                      initial={{ opacity: 0, scale: 0.8, x: 0, y: 0 }}
+                      animate={{ opacity: 1, scale: 1, x, y }}
+                      exit={{ opacity: 0, scale: 0.8, x: 0, y: 0 }}
+                      transition={{ type: 'spring', stiffness: 80, damping: 15 }}
+                    >
+                      <PeerCard peer={peer} onClick={() => setSelectedPeer(selectedPeer?.id === peer.id ? null : peer)} />
+                      {selectedPeer?.id === peer.id && (
+                        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+                          style={{ position: 'absolute', bottom: -6, left: '50%', transform: 'translateX(-50%)',
+                            width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)',
+                            boxShadow: '0 0 10px var(--accent)' }} />
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+
+              {/* Empty state instruction */}
+              {peers.length === 0 && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+                  style={{ position: 'absolute', bottom: -10, left: 0, right: 0, textAlign: 'center' }}>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                    Open NotAirBeam on another device on the same local network
+                  </p>
+                </motion.div>
+              )}
+            </div>
+          </div>
+
+          {/* Column Right: Controls & Transfers */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24, width: '100%' }}>
+            {/* ── Selected Peer + File Drop Zone ── */}
             <AnimatePresence>
-              {peers.map((peer, i) => {
-                // Distribute peers evenly around full circle, starting from top
-                // For single peer: place directly to the right (east) at good radius
-                const totalPeers = peers.length;
-                const angle = (i / totalPeers) * 2 * Math.PI - Math.PI / 2;
-                // Ensure minimum radius so even 1 peer doesn't overlap center node
-                const r = Math.max(150, Math.min(200, 150 + totalPeers * 10));
-                const x = Math.cos(angle) * r;
-                const y = Math.sin(angle) * r;
-                return (
-                  <motion.div
-                    key={peer.id}
-                    style={{ position: 'absolute', zIndex: 3 }}
-                    initial={{ opacity: 0, scale: 0.8, x: 0, y: 0 }}
-                    animate={{ opacity: 1, scale: 1, x, y }}
-                    exit={{ opacity: 0, scale: 0.8, x: 0, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 80, damping: 15 }}
-                  >
-                    <PeerCard peer={peer} onClick={() => setSelectedPeer(selectedPeer?.id === peer.id ? null : peer)} />
-                    {selectedPeer?.id === peer.id && (
-                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
-                        style={{ position: 'absolute', bottom: -6, left: '50%', transform: 'translateX(-50%)',
-                          width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)',
-                          boxShadow: '0 0 10px var(--accent)' }} />
-                    )}
-                  </motion.div>
-                );
-              })}
+              {selectedPeer && (
+                <motion.section
+                  key="dropzone"
+                  initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
+                  style={{ width: '100%' }}
+                >
+                  <div className="glass" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', marginBottom: 16 }}>
+                    <DeviceAvatar peer={selectedPeer} size={40} />
+                    <div>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{selectedPeer.name}</p>
+                      <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}><span style={{ textTransform: 'capitalize' }}>{selectedPeer.os}</span> · {selectedPeer.type}</p>
+                    </div>
+                    <button onClick={() => setSelectedPeer(null)} className="btn-ghost"
+                      style={{ marginLeft: 'auto', padding: '5px 12px', fontSize: 12 }}>✕ Deselect</button>
+                  </div>
+                  <DropZone onFiles={handleFiles} targetPeer={selectedPeer} />
+                </motion.section>
+              )}
             </AnimatePresence>
 
-            {/* Empty state instruction */}
-            {peers.length === 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-                style={{ position: 'absolute', bottom: -10, left: 0, right: 0, textAlign: 'center' }}>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-                  Open NotAirBeam on another device on the same local network
-                </p>
-              </motion.div>
+            {/* ── File Transfer Activity Monitor ── */}
+            <AnimatePresence>
+              {(showTransfers || transfers.length > 0) && transfers.length > 0 && (
+                <motion.section
+                  initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                  style={{ width: '100%' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <h2 style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-secondary)', letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
+                      Transfers
+                    </h2>
+                    <button onClick={() => useTransferStore.getState().clearCompleted()}
+                      style={{ fontSize: 11, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Clear completed
+                    </button>
+                  </div>
+                  <AnimatePresence>
+                    {transfers.map((t) => <TransferCard key={t.id} transfer={t} />)}
+                  </AnimatePresence>
+                </motion.section>
+              )}
+            </AnimatePresence>
+
+            {/* ── Help Prompt ── */}
+            {!selectedPeer && peers.length > 0 && (
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
+                style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', marginTop: 12, fontFamily: 'var(--font-mono)' }}>
+                SELECT A DEVICE ABOVE TO SHARE FILES
+              </motion.p>
             )}
           </div>
-        </section>
-
-        {/* ── Selected Peer + File Drop Zone ── */}
-        <AnimatePresence>
-          {selectedPeer && (
-            <motion.section
-              key="dropzone"
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
-              style={{ width: '100%', marginBottom: 36 }}
-            >
-              <div className="glass" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', marginBottom: 16 }}>
-                <DeviceAvatar peer={selectedPeer} size={40} />
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{selectedPeer.name}</p>
-                  <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}><span style={{ textTransform: 'capitalize' }}>{selectedPeer.os}</span> · {selectedPeer.type}</p>
-                </div>
-                <button onClick={() => setSelectedPeer(null)} className="btn-ghost"
-                  style={{ marginLeft: 'auto', padding: '5px 12px', fontSize: 12 }}>✕ Deselect</button>
-              </div>
-              <DropZone onFiles={handleFiles} targetPeer={selectedPeer} />
-            </motion.section>
-          )}
-        </AnimatePresence>
-
-        {/* ── File Transfer Activity Monitor ── */}
-        <AnimatePresence>
-          {(showTransfers || transfers.length > 0) && transfers.length > 0 && (
-            <motion.section
-              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-              style={{ width: '100%', marginTop: 10 }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <h2 style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-secondary)', letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
-                  Transfers
-                </h2>
-                <button onClick={() => useTransferStore.getState().clearCompleted()}
-                  style={{ fontSize: 11, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Clear completed
-                </button>
-              </div>
-              <AnimatePresence>
-                {transfers.map((t) => <TransferCard key={t.id} transfer={t} />)}
-              </AnimatePresence>
-            </motion.section>
-          )}
-        </AnimatePresence>
-
-        {/* ── Help Prompt ── */}
-        {!selectedPeer && peers.length > 0 && (
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-            style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', marginTop: 12, fontFamily: 'var(--font-mono)' }}>
-            SELECT A DEVICE ABOVE TO SHARE FILES
-          </motion.p>
-        )}
+        </div>
       </main>
 
       {/* ── Modal overlay managers ── */}

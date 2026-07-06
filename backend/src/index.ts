@@ -10,6 +10,7 @@ import { runMigrations } from './db';
 import { createWebSocketServer } from './ws/server';
 import authRouter from './routes/auth';
 import transfersRouter from './routes/transfers';
+import adminRouter from './routes/admin';
 
 const app = express();
 const server = http.createServer(app);
@@ -59,6 +60,7 @@ app.use('/api/auth/', authLimiter);
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRouter);
 app.use('/api/transfers', transfersRouter);
+app.use('/api/admin', adminRouter);
 
 // Health check
 app.get('/api/health', (_, res) => {

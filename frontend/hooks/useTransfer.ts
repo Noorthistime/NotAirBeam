@@ -38,7 +38,7 @@ export function useTransfer({ sendSignal, onWsMessage }: UseTransferOptions) {
 
   const { initiateConnection, handleOffer, handleAnswer, handleIceCandidate, sendData, closeConnection, getSession } =
     useWebRTC(
-      device.id,
+      device.clientId,
       sendSignal,
       // onData — handle incoming chunks
       (data: ArrayBuffer | string, peerId: string) => {
@@ -162,7 +162,7 @@ export function useTransfer({ sendSignal, onWsMessage }: UseTransferOptions) {
       // Signal transfer request via WebSocket
       sendSignal({
         type: 'TRANSFER_REQUEST',
-        from: device.id,
+        from: device.clientId,
         to: peerId,
         payload: {
           transferId,
@@ -275,7 +275,7 @@ export function useTransfer({ sendSignal, onWsMessage }: UseTransferOptions) {
 
       sendSignal({
         type: 'TRANSFER_ACCEPT',
-        from: device.id,
+        from: device.clientId,
         to: peerId,
         payload: { transferId },
       });
@@ -284,20 +284,20 @@ export function useTransfer({ sendSignal, onWsMessage }: UseTransferOptions) {
 
       // WebRTC offer will come from sender — handled in handleOffer
     },
-    [device.id, sendSignal, addTransfer, setIncoming]
+    [device.clientId, sendSignal, addTransfer, setIncoming]
   );
 
   const rejectTransfer = useCallback(
     (req: IncomingRequest) => {
       sendSignal({
         type: 'TRANSFER_REJECT',
-        from: device.id,
+        from: device.clientId,
         to: req.peerId,
         payload: { transferId: req.transferId },
       });
       setIncoming(null);
     },
-    [device.id, sendSignal, setIncoming]
+    [device.clientId, sendSignal, setIncoming]
   );
 
   // ── Wire up incoming WS signals ──────────────────────────────────────────────

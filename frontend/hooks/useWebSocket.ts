@@ -50,11 +50,11 @@ export function useWebSocket() {
   }, []);
 
   const emit = useCallback((type: MessageType, to: string | undefined, payload: unknown) => {
-    send({ type, from: device.id, to, payload });
-  }, [send, device.id]);
+    send({ type, from: device.clientId, to, payload });
+  }, [send, device.clientId]);
 
   const connect = useCallback(() => {
-    if (!device.isReady || !device.id) return;
+    if (!device.isReady || !device.clientId) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     const ws = new WebSocket(getWsUrl());
@@ -68,13 +68,13 @@ export function useWebSocket() {
       // Announce self
       send({
         type: 'PEER_JOIN',
-        from: device.id,
+        from: device.clientId,
         payload: { name: device.name, type: device.type, os: device.os, roomCode: device.roomCode },
       });
 
       // Start heartbeat
       pingRef.current = setInterval(() => {
-        send({ type: 'PING', from: device.id, payload: { ts: Date.now() } });
+        send({ type: 'PING', from: device.clientId, payload: { ts: Date.now() } });
       }, PING_INTERVAL);
     };
 
@@ -133,7 +133,7 @@ export function useWebSocket() {
       lastRoomCode.current = device.roomCode;
       send({
         type: 'PEER_JOIN',
-        from: device.id,
+        from: device.clientId,
         payload: { name: device.name, type: device.type, os: device.os, roomCode: device.roomCode },
       });
       // Clear peers since we changed rooms

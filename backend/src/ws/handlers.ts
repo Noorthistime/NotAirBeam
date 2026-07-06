@@ -172,11 +172,12 @@ export function handleMessage(ws: WebSocket, raw: string, clientIp: string) {
 
 // ─── Peer Disconnect Handler ───────────────────────────────────────────────────
 export function handleDisconnect(deviceId: string) {
+  // Query remaining peers in subnet before removing the peer from mapping
+  const remaining = getPeersInSubnet(deviceId);
   const peer = removePeer(deviceId);
   if (!peer) return;
 
   // Notify remaining peers in the same subnet
-  const remaining = getPeersInSubnet(deviceId);
   broadcastToPeers(remaining, {
     type: 'PEER_LEAVE',
     from: 'server',

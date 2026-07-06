@@ -2,10 +2,26 @@
 import { useRef, useCallback } from 'react';
 import { WSMessage } from '../../shared/types';
 
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-];
+const getIceServers = (): RTCIceServer[] => {
+  const servers: RTCIceServer[] = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ];
+
+  const turnUrl = process.env.NEXT_PUBLIC_TURN_URL;
+  const turnUser = process.env.NEXT_PUBLIC_TURN_USERNAME;
+  const turnPass = process.env.NEXT_PUBLIC_TURN_PASSWORD;
+
+  if (turnUrl) {
+    servers.push({
+      urls: turnUrl,
+      username: turnUser || '',
+      credential: turnPass || '',
+    });
+  }
+
+  return servers;
+};
 
 export interface RTCSession {
   peerId: string;
@@ -28,7 +44,7 @@ export function useWebRTC(
 
   const createPeerConnection = useCallback(
     (peerId: string, isInitiator: boolean): RTCSession => {
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      const pc = new RTCPeerConnection({ iceServers: getIceServers() });
       let dc: RTCDataChannel | null = null;
 
       pc.onicecandidate = (e) => {
@@ -44,8 +60,10 @@ export function useWebRTC(
 
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-          sessions.current.delete(peerId);
-          onChannelClose?.(peerId);
+          if (sessions.current.get(peerId)?.pc === pc) {
+            sessions.current.delete(peerId);
+            onChannelClose?.(peerId);
+          }
         }
       };
 

@@ -23,7 +23,8 @@ const subnets = new Map<string, string>();
 
 export function addPeer(peer: PeerInfo): void {
   peers.set(peer.id, peer);
-  const subnet = peer.roomCode ? `ROOM_${peer.roomCode.toUpperCase()}` : getSubnet(peer.ip);
+  const baseSubnet = getSubnet(peer.ip);
+  const subnet = peer.roomCode ? `${baseSubnet}_ROOM_${peer.roomCode.toUpperCase()}` : baseSubnet;
   subnets.set(peer.id, subnet);
 }
 

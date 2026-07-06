@@ -10,6 +10,7 @@ import {
 
 interface DeviceState {
   id: string;
+  clientId: string;
   name: string;
   os: DeviceOS;
   type: DeviceType;
@@ -24,6 +25,7 @@ export const useDeviceStore = create<DeviceState>()(
   persist(
     (set, get) => ({
       id: '',
+      clientId: '',
       name: '',
       os: 'unknown',
       type: 'desktop',
@@ -35,7 +37,18 @@ export const useDeviceStore = create<DeviceState>()(
         const name = getOrCreateDeviceName();
         const os = detectOS();
         const type = detectDeviceType();
-        set({ id, name, os, type, isReady: true });
+
+        let tabId = '';
+        if (typeof window !== 'undefined') {
+          tabId = sessionStorage.getItem('offlinedrop_tab_id') || '';
+          if (!tabId) {
+            tabId = Math.random().toString(36).slice(2, 6);
+            sessionStorage.setItem('offlinedrop_tab_id', tabId);
+          }
+        }
+        const clientId = id + (tabId ? `-${tabId}` : '');
+
+        set({ id, clientId, name, os, type, isReady: true });
       },
       setName: (name: string) => {
         if (typeof window !== 'undefined') {
