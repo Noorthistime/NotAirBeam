@@ -60,12 +60,21 @@ export function useWebRTC(
       };
 
       pc.onconnectionstatechange = () => {
+        console.log(`[WebRTC] Connection state: ${pc.connectionState}`);
         if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
           if (sessions.current.get(peerId)?.pc === pc) {
             sessions.current.delete(peerId);
             onChannelClose?.(peerId);
           }
         }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log(`[WebRTC] ICE Connection state: ${pc.iceConnectionState}`);
+      };
+
+      pc.onsignalingstatechange = () => {
+        console.log(`[WebRTC] Signaling state: ${pc.signalingState}`);
       };
 
       if (isInitiator) {

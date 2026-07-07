@@ -196,17 +196,28 @@ export function useTransfer({ sendSignal, onWsMessage }: UseTransferOptions) {
             const session = await initiateConnection(peerId);
 
             // Wait for data channel to open
+            console.log('[Transfer] Waiting for DataChannel to open...');
             await new Promise<void>((res, rej) => {
               const checkOpen = setInterval(() => {
-                if (session.dc?.readyState === 'open') { clearInterval(checkOpen); res(); }
+                if (session.dc?.readyState === 'open') {
+                  clearInterval(checkOpen);
+                  console.log('[Transfer] DataChannel opened successfully!');
+                  res();
+                }
               }, 100);
-              setTimeout(() => { clearInterval(checkOpen); rej(new Error('DC timeout')); }, 30_000);
+              setTimeout(() => {
+                clearInterval(checkOpen);
+                console.error('[Transfer] DataChannel timeout (30s)!');
+                rej(new Error('DC timeout'));
+              }, 30_000);
             });
 
             // Send metadata
+            console.log('[Transfer] Sending metadata...');
             session.dc!.send(JSON.stringify({ type: 'TRANSFER_META', transferId, files: fileInfos }));
 
             // Send all chunks
+            console.log('[Transfer] Starting chunk transfer...');
             let sentChunks = 0;
             const totalChunkCount = fileInfos.reduce((s, f) => s + f.totalChunks, 0);
             const startTime = Date.now();
