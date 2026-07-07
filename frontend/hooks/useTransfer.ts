@@ -21,8 +21,11 @@ interface UseTransferOptions {
 }
 
 export function useTransfer({ sendSignal, onWsMessage }: UseTransferOptions) {
-  const device = useDeviceStore();
-  const { addTransfer, updateTransfer, setIncoming } = useTransferStore();
+  const clientId = useDeviceStore((s) => s.clientId);
+  const deviceName = useDeviceStore((s) => s.name);
+  const addTransfer = useTransferStore((s) => s.addTransfer);
+  const updateTransfer = useTransferStore((s) => s.updateTransfer);
+  const setIncoming = useTransferStore((s) => s.setIncoming);
 
   // Receive state: transferId → { chunks, meta }
   const receiveState = useRef<Map<string, {
@@ -36,104 +39,112 @@ export function useTransfer({ sendSignal, onWsMessage }: UseTransferOptions) {
 
   const pendingCompletes = useRef<Map<string, () => void>>(new Map());
 
+  // Stable callback ref pattern to avoid recreation on every render
+  const onDataRef = useRef<(data: ArrayBuffer | string, peerId: string) => void>(() => {});
+  const handleData = useCallback((data: ArrayBuffer | string, peerId: string) => {
+    onDataRef.current(data, peerId);
+  }, []);
+
   const { initiateConnection, handleOffer, handleAnswer, handleIceCandidate, sendData, closeConnection, getSession } =
     useWebRTC(
-      device.clientId,
+      clientId,
       sendSignal,
-      // onData — handle incoming chunks
-      (data: ArrayBuffer | string, peerId: string) => {
-        if (typeof data === 'string') {
-          // Control message
-          try {
-            const msg = JSON.parse(data);
-            if (msg.type === 'TRANSFER_META') {
-              const { transferId, files } = msg;
-              const total = files.reduce((sum: number, f: any) => sum + totalChunks(f.size), 0);
-              receiveState.current.set(transferId, {
-                chunks: new Map(),
-                meta: files,
-                currentFileIndex: 0,
-                receivedChunks: 0,
-                totalChunks: total,
-                startTime: Date.now(),
-              });
-            } else if (msg.type === 'TRANSFER_COMPLETE_ACK') {
-              const resolveComplete = pendingCompletes.current.get(msg.transferId);
-              if (resolveComplete) {
-                resolveComplete();
-                pendingCompletes.current.delete(msg.transferId);
-              }
-            }
-          } catch {}
-          return;
-        }
-        // Binary chunk
-        const chunk = decodeChunk(data as ArrayBuffer);
-        const state = receiveState.current.get(chunk.transferId);
-        if (!state) {
-          console.warn('[Transfer] Received chunk for unknown transferId:', chunk.transferId);
-          return;
-        }
+      handleData
+    );
 
-        state.chunks.set(chunk.index + (chunk.fileIndex * 1_000_000), chunk.data);
-        state.receivedChunks++;
-
-        const progress = Math.round((state.receivedChunks / state.totalChunks) * 100);
-        const elapsed = Math.max(0.001, (Date.now() - state.startTime) / 1000);
-        const received = state.receivedChunks * CHUNK_SIZE;
-        const speed = received / elapsed;
-
-        updateTransfer(chunk.transferId, { progress, speed });
-
-        // Check if all chunks received
-        if (state.receivedChunks >= state.totalChunks) {
-          console.log('[Transfer] All chunks received for', chunk.transferId, '— sending ACK and assembling files...');
-
-          // Send confirmation back to sender BEFORE download/assembly
-          const session = getSession(peerId);
-          if (session?.dc && session.dc.readyState === 'open') {
-            try {
-              session.dc.send(JSON.stringify({ type: 'TRANSFER_COMPLETE_ACK', transferId: chunk.transferId }));
-            } catch (err) {
-              console.error('[Transfer] Failed to send completion ACK:', err);
-            }
+  // Update the latest implementation on every render without triggering dependency changes
+  onDataRef.current = (data: ArrayBuffer | string, peerId: string) => {
+    if (typeof data === 'string') {
+      // Control message
+      try {
+        const msg = JSON.parse(data);
+        if (msg.type === 'TRANSFER_META') {
+          const { transferId, files } = msg;
+          const total = files.reduce((sum: number, f: any) => sum + totalChunks(f.size), 0);
+          receiveState.current.set(transferId, {
+            chunks: new Map(),
+            meta: files,
+            currentFileIndex: 0,
+            receivedChunks: 0,
+            totalChunks: total,
+            startTime: Date.now(),
+          });
+        } else if (msg.type === 'TRANSFER_COMPLETE_ACK') {
+          const resolveComplete = pendingCompletes.current.get(msg.transferId);
+          if (resolveComplete) {
+            resolveComplete();
+            pendingCompletes.current.delete(msg.transferId);
           }
+        }
+      } catch {}
+      return;
+    }
+    // Binary chunk
+    const chunk = decodeChunk(data as ArrayBuffer);
+    const state = receiveState.current.get(chunk.transferId);
+    if (!state) {
+      console.warn('[Transfer] Received chunk for unknown transferId:', chunk.transferId);
+      return;
+    }
 
-          // Assemble and download each file
-          const blobUrls: string[] = [];
-          state.meta.forEach((fileMeta, fi) => {
-            const fileChunkCount = totalChunks(fileMeta.size);
-            const fileChunks: ArrayBuffer[] = [];
-            for (let i = 0; i < fileChunkCount; i++) {
-              const c = state.chunks.get(i + fi * 1_000_000);
-              if (c) fileChunks.push(c);
-            }
-            console.log(`[Transfer] Assembling file ${fi + 1}/${state.meta.length}: ${fileMeta.name} (${fileChunks.length} chunks)`);
-            // Use application/octet-stream as MIME fallback if empty
-            const mimeType = fileMeta.type || 'application/octet-stream';
-            const blob = assembleChunks(fileChunks, mimeType);
-            const blobUrl = URL.createObjectURL(blob);
-            blobUrls.push(blobUrl);
+    state.chunks.set(chunk.index + (chunk.fileIndex * 1_000_000), chunk.data);
+    state.receivedChunks++;
 
-            // Auto-download attempt
-            downloadBlob(blob, fileMeta.name);
-          });
+    const progress = Math.round((state.receivedChunks / state.totalChunks) * 100);
+    const elapsed = Math.max(0.001, (Date.now() - state.startTime) / 1000);
+    const received = state.receivedChunks * CHUNK_SIZE;
+    const speed = received / elapsed;
 
-          updateTransfer(chunk.transferId, {
-            status: 'complete',
-            progress: 100,
-            completedAt: new Date().toISOString(),
-            blobUrls,
-          });
+    updateTransfer(chunk.transferId, { progress, speed });
 
-          receiveState.current.delete(chunk.transferId);
-          // Wait a short delay before closing to ensure the ACK has been flushed
-          setTimeout(() => {
-            closeConnection(peerId);
-          }, 1000);
+    // Check if all chunks received
+    if (state.receivedChunks >= state.totalChunks) {
+      console.log('[Transfer] All chunks received for', chunk.transferId, '— sending ACK and assembling files...');
+
+      // Send confirmation back to sender BEFORE download/assembly
+      const session = getSession(peerId);
+      if (session?.dc && session.dc.readyState === 'open') {
+        try {
+          session.dc.send(JSON.stringify({ type: 'TRANSFER_COMPLETE_ACK', transferId: chunk.transferId }));
+        } catch (err) {
+          console.error('[Transfer] Failed to send completion ACK:', err);
         }
       }
-    );
+
+      // Assemble and download each file
+      const blobUrls: string[] = [];
+      state.meta.forEach((fileMeta, fi) => {
+        const fileChunkCount = totalChunks(fileMeta.size);
+        const fileChunks: ArrayBuffer[] = [];
+        for (let i = 0; i < fileChunkCount; i++) {
+          const c = state.chunks.get(i + fi * 1_000_000);
+          if (c) fileChunks.push(c);
+        }
+        console.log(`[Transfer] Assembling file ${fi + 1}/${state.meta.length}: ${fileMeta.name} (${fileChunks.length} chunks)`);
+        // Use application/octet-stream as MIME fallback if empty
+        const mimeType = fileMeta.type || 'application/octet-stream';
+        const blob = assembleChunks(fileChunks, mimeType);
+        const blobUrl = URL.createObjectURL(blob);
+        blobUrls.push(blobUrl);
+
+        // Auto-download attempt
+        downloadBlob(blob, fileMeta.name);
+      });
+
+      updateTransfer(chunk.transferId, {
+        status: 'complete',
+        progress: 100,
+        completedAt: new Date().toISOString(),
+        blobUrls,
+      });
+
+      receiveState.current.delete(chunk.transferId);
+      // Wait a short delay before closing to ensure the ACK has been flushed
+      setTimeout(() => {
+        closeConnection(peerId);
+      }, 1000);
+    }
+  };
 
   // ── Send Files ───────────────────────────────────────────────────────────────
   const sendFiles = useCallback(
@@ -162,12 +173,12 @@ export function useTransfer({ sendSignal, onWsMessage }: UseTransferOptions) {
       // Signal transfer request via WebSocket
       sendSignal({
         type: 'TRANSFER_REQUEST',
-        from: device.clientId,
+        from: clientId,
         to: peerId,
         payload: {
           transferId,
           files: fileInfos,
-          senderName: device.name,
+          senderName: deviceName,
         },
       });
 
@@ -253,7 +264,7 @@ export function useTransfer({ sendSignal, onWsMessage }: UseTransferOptions) {
         }, 60_000);
       });
     },
-    [device, sendSignal, onWsMessage, addTransfer, updateTransfer, initiateConnection, sendData, closeConnection]
+    [clientId, deviceName, sendSignal, onWsMessage, addTransfer, updateTransfer, initiateConnection, sendData, closeConnection]
   );
 
   // ── Handle incoming request ──────────────────────────────────────────────────
@@ -275,7 +286,7 @@ export function useTransfer({ sendSignal, onWsMessage }: UseTransferOptions) {
 
       sendSignal({
         type: 'TRANSFER_ACCEPT',
-        from: device.clientId,
+        from: clientId,
         to: peerId,
         payload: { transferId },
       });
@@ -284,20 +295,20 @@ export function useTransfer({ sendSignal, onWsMessage }: UseTransferOptions) {
 
       // WebRTC offer will come from sender — handled in handleOffer
     },
-    [device.clientId, sendSignal, addTransfer, setIncoming]
+    [clientId, sendSignal, addTransfer, setIncoming]
   );
 
   const rejectTransfer = useCallback(
     (req: IncomingRequest) => {
       sendSignal({
         type: 'TRANSFER_REJECT',
-        from: device.clientId,
+        from: clientId,
         to: req.peerId,
         payload: { transferId: req.transferId },
       });
       setIncoming(null);
     },
-    [device.clientId, sendSignal, setIncoming]
+    [clientId, sendSignal, setIncoming]
   );
 
   // ── Wire up incoming WS signals ──────────────────────────────────────────────
