@@ -27,6 +27,7 @@ export interface RTCSession {
   peerId: string;
   pc: RTCPeerConnection;
   dc: RTCDataChannel | null;
+  candidatesQueue: RTCIceCandidateInit[];
 }
 
 type OnDataCallback = (data: ArrayBuffer | string, peerId: string) => void;
@@ -82,7 +83,7 @@ export function useWebRTC(
         };
       }
 
-      const session: RTCSession = { peerId, pc, dc };
+      const session: RTCSession = { peerId, pc, dc, candidatesQueue: [] };
       sessions.current.set(peerId, session);
       return session;
     },
@@ -116,6 +117,17 @@ export function useWebRTC(
     async (peerId: string, sdp: RTCSessionDescriptionInit) => {
       const session = createPeerConnection(peerId, false);
       await session.pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      
+      // Flush queued candidates
+      for (const candidate of session.candidatesQueue) {
+        try {
+          await session.pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (e) {
+          console.warn('[WebRTC] Queued ICE candidate error:', e);
+        }
+      }
+      session.candidatesQueue = [];
+
       const answer = await session.pc.createAnswer();
       await session.pc.setLocalDescription(answer);
       sendSignal({ type: 'ANSWER', from: deviceId, to: peerId, payload: { sdp: answer } });
@@ -126,17 +138,34 @@ export function useWebRTC(
   // Handle answer from receiver
   const handleAnswer = useCallback(async (peerId: string, sdp: RTCSessionDescriptionInit) => {
     const session = sessions.current.get(peerId);
-    if (session) await session.pc.setRemoteDescription(new RTCSessionDescription(sdp));
+    if (session) {
+      await session.pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      
+      // Flush queued candidates
+      for (const candidate of session.candidatesQueue) {
+        try {
+          await session.pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (e) {
+          console.warn('[WebRTC] Queued ICE candidate error:', e);
+        }
+      }
+      session.candidatesQueue = [];
+    }
   }, []);
 
   // Handle ICE candidate
   const handleIceCandidate = useCallback(async (peerId: string, candidate: RTCIceCandidateInit) => {
     const session = sessions.current.get(peerId);
     if (session) {
-      try {
-        await session.pc.addIceCandidate(new RTCIceCandidate(candidate));
-      } catch (e) {
-        console.warn('[WebRTC] ICE candidate error:', e);
+      if (session.pc.remoteDescription && session.pc.remoteDescription.type) {
+        try {
+          await session.pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (e) {
+          console.warn('[WebRTC] ICE candidate error:', e);
+        }
+      } else {
+        // Queue the candidate until remote description is set
+        session.candidatesQueue.push(candidate);
       }
     }
   }, []);
