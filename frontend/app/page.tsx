@@ -407,11 +407,9 @@ function DropZone({ onFiles, targetPeer }: { onFiles: (files: File[]) => void; t
 function SettingsPanel({ onClose }: { onClose: () => void }) {
   const device = useDeviceStore();
   const [name, setName] = useState(device.name);
-  const [roomCode, setRoomCode] = useState(device.roomCode || '');
 
   const save = () => { 
     device.setName(name.trim() || device.name); 
-    device.setRoomCode(roomCode.trim());
     onClose(); 
   };
 
@@ -431,12 +429,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
           <input className="input" value={name} onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && save()} placeholder="e.g. Noor's Laptop" maxLength={40} />
         </div>
-        <div style={{ marginBottom: 20 }}>
-          <label style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 8, fontFamily: 'var(--font-mono)' }}>Private Room Code (Optional)</label>
-          <input className="input" value={roomCode} onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === 'Enter' && save()} placeholder="e.g. 12345" maxLength={10} style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }} />
-          <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 8 }}>Enter a secret code to connect securely across different networks.</p>
-        </div>
+
         <div style={{ marginBottom: 24, padding: '12px 16px', background: 'var(--bg-overlay)', border: '1px solid var(--border)', borderRadius: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, alignItems: 'center' }}>
             <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Device ID</span>
@@ -466,43 +459,6 @@ export default function HomePage() {
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'error' | 'info' }[]>([]);
   const [showTransfers, setShowTransfers] = useState(false);
 
-  // Administrative Panel States
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminStats, setAdminStats] = useState<any>(null);
-
-  const fetchAdminStats = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/stats', {
-        headers: {
-          'x-admin-secret': 'nothing_drop_secure'
-        }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setAdminStats(data);
-      }
-    } catch (err) {
-      console.error('Failed to load admin stats:', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('admin') === 'true') {
-        setIsAdmin(true);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isAdmin) {
-      fetchAdminStats();
-      const interval = setInterval(fetchAdminStats, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [isAdmin, fetchAdminStats]);
-  
   // Theme Management
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   useEffect(() => {
@@ -583,14 +539,6 @@ export default function HomePage() {
         </div>
 
         <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {/* Room status */}
-          {device.roomCode && (
-            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--accent-subtle)', padding: '4px 10px', borderRadius: 6, border: '1px solid var(--accent)' }}>
-              <span style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.05em', fontFamily: 'var(--font-mono)' }}>
-                ROOM: {device.roomCode}
-              </span>
-            </div>
-          )}
 
           {/* Connection status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -670,71 +618,6 @@ export default function HomePage() {
           </motion.p>
         </div>
 
-        {/* ── Admin Panel Section (Conditionally Rendered) ── */}
-        {isAdmin && adminStats && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="nothing-glass"
-            style={{ padding: '20px 24px', marginBottom: 32, border: '1.5px dashed var(--accent)', position: 'relative' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className="status-dot online" style={{ width: 8, height: 8, background: 'var(--accent)', boxShadow: '0 0 8px var(--accent)', animation: 'pulse 1.5s infinite' }} />
-                <span style={{ fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  NotAirBeam Admin Panel
-                </span>
-              </div>
-              <span className="nothing-badge" style={{ fontSize: 10, padding: '2px 8px' }}>
-                Uptime: {Math.round(adminStats.uptime)}s
-              </span>
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 20 }}>
-              <div style={{ padding: 12, background: 'var(--bg-overlay)', border: '1px solid var(--border)', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Active Devices</div>
-                <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--accent)', marginTop: 4 }}>{adminStats.activePeerCount}</div>
-              </div>
-              <div style={{ padding: 12, background: 'var(--bg-overlay)', border: '1px solid var(--border)', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Database Users</div>
-                <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4 }}>{adminStats.totalUsers}</div>
-              </div>
-              <div style={{ padding: 12, background: 'var(--bg-overlay)', border: '1px solid var(--border)', borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>Total Recorded Transfers</div>
-                <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4 }}>{adminStats.totalTransfers}</div>
-              </div>
-            </div>
-
-            {adminStats.activePeers && adminStats.activePeers.length > 0 ? (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left', fontFamily: 'var(--font-mono)' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-bright)', color: 'var(--text-secondary)' }}>
-                      <th style={{ padding: 8 }}>Device Name</th>
-                      <th style={{ padding: 8 }}>OS</th>
-                      <th style={{ padding: 8 }}>IP Address</th>
-                      <th style={{ padding: 8 }}>Subnet / Room Code</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {adminStats.activePeers.map((p: any) => (
-                      <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: 8, fontWeight: 600 }}>{p.name} {p.id === device.clientId && '(You)'}</td>
-                        <td style={{ padding: 8, textTransform: 'capitalize' }}>{p.os} ({p.type})</td>
-                        <td style={{ padding: 8 }}>{p.ip}</td>
-                        <td style={{ padding: 8 }}>{p.roomCode ? `ROOM: ${p.roomCode}` : 'Local Network'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', padding: 12, fontFamily: 'var(--font-mono)' }}>
-                No active peers currently online.
-              </div>
-            )}
-          </motion.div>
-        )}
 
         <div className="dashboard-grid">
           {/* Column Left: Radar Orb System */}

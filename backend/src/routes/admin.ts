@@ -7,7 +7,7 @@ const router = Router();
 // Validate Admin auth token (simple secret header check)
 router.use((req, res, next) => {
   const secret = req.headers['x-admin-secret'];
-  const expectedSecret = process.env.ADMIN_SECRET || 'nothing_drop_secure';
+  const expectedSecret = process.env.ADMIN_PASS || 'nothing_drop_secure';
   if (secret !== expectedSecret) {
     return res.status(403).json({ error: 'Access denied: invalid secret key' });
   }
@@ -27,7 +27,6 @@ router.get('/stats', (req, res) => {
       os: p.os,
       ip: p.ip,
       joinedAt: p.joinedAt,
-      roomCode: p.roomCode || null,
     }));
 
     // Uptime

@@ -66,7 +66,7 @@ export function handleMessage(ws: WebSocket, raw: string, clientIp: string) {
   switch (type) {
     // ── Device joins the network ────────────────────────────────────────────
     case 'PEER_JOIN': {
-      const p = payload as { name: string; type: PeerInfo['type']; os: PeerInfo['os']; roomCode?: string };
+      const p = payload as { name: string; type: PeerInfo['type']; os: PeerInfo['os'] };
       if (!from || !p.name) {
         send(ws, { type: 'ERROR', from: 'server', payload: { error: 'PEER_JOIN requires id, name' } });
         return;
@@ -92,7 +92,6 @@ export function handleMessage(ws: WebSocket, raw: string, clientIp: string) {
         ip: clientIp,
         joinedAt: new Date().toISOString(),
         ws,
-        roomCode: p.roomCode,
       };
 
       addPeer(peer);
@@ -113,7 +112,7 @@ export function handleMessage(ws: WebSocket, raw: string, clientIp: string) {
       }, from);
 
       // Log join
-      const roomDesc = p.roomCode ? `ROOM_${p.roomCode.toUpperCase()}` : clientIp;
+      const roomDesc = clientIp;
       console.log(`[WS] PEER_JOIN: ${peer.name} (${peer.id}) in ${roomDesc}`);
       break;
     }

@@ -71,7 +71,7 @@ export function useWebSocket() {
       ws.send(JSON.stringify({
         type: 'PEER_JOIN',
         from: device.clientId,
-        payload: { name: device.name, type: device.type, os: device.os, roomCode: device.roomCode },
+        payload: { name: device.name, type: device.type, os: device.os },
       }));
 
       // Start heartbeat
@@ -132,20 +132,6 @@ export function useWebSocket() {
     };
   }, [device.isReady, device.clientId, reconnectTrigger, setPeers, addPeer, removePeer, setDiscovering]);
 
-  // Handle room changes
-  const lastRoomCode = useRef(device.roomCode);
-  useEffect(() => {
-    if (connected && device.roomCode !== lastRoomCode.current) {
-      lastRoomCode.current = device.roomCode;
-      send({
-        type: 'PEER_JOIN',
-        from: device.clientId,
-        payload: { name: device.name, type: device.type, os: device.os, roomCode: device.roomCode },
-      });
-      // Clear peers since we changed rooms
-      setPeers([]);
-    }
-  }, [device.roomCode, connected, send, device.clientId, device.name, device.type, device.os, setPeers]);
 
   return { connected, reconnecting, send, on, emit };
 }

@@ -12,7 +12,6 @@ export interface PeerInfo {
   ip: string;
   joinedAt: string;
   ws: WebSocket;
-  roomCode?: string;
 }
 
 // Map: deviceId → PeerInfo
@@ -23,8 +22,7 @@ const subnets = new Map<string, string>();
 
 export function addPeer(peer: PeerInfo): void {
   peers.set(peer.id, peer);
-  const baseSubnet = getSubnet(peer.ip);
-  const subnet = peer.roomCode ? `${baseSubnet}_ROOM_${peer.roomCode.toUpperCase()}` : baseSubnet;
+  const subnet = getSubnet(peer.ip);
   subnets.set(peer.id, subnet);
 }
 
