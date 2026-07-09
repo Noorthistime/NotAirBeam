@@ -1,6 +1,6 @@
-# ⚡ OfflineDrop
+# ⚡ 
 
-OfflineDrop is a **premium, local-network peer-to-peer file sharing platform** designed as a zero-internet, browser-based alternative to AirDrop. It allows you to share files instantly between devices (phones, tablets, laptops) on the same local network (Wi-Fi, mobile hotspot, LAN) without installing native apps or uploading data to the cloud.
+NotAirBeam is a **premium, local-network peer-to-peer file sharing platform** designed as a zero-internet, browser-based alternative to AirDrop. It allows you to share files instantly between devices (phones, tablets, laptops) on the same local network (Wi-Fi, mobile hotspot, LAN) without installing native apps or uploading data to the cloud.
 
 Built with a gorgeous glassmorphism user interface inspired by premium minimal designs, OfflineDrop leverages WebSocket signaling and direct WebRTC DataChannels to deliver lightning-fast, secure, and encrypted peer-to-peer transfers.
 
