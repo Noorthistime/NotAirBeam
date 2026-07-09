@@ -107,7 +107,7 @@ function TransferCard({ transfer }: { transfer: any }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="glass"
+      className="glass transfer-card"
       style={{ padding: '14px 18px', marginBottom: 10, border: '1px solid var(--border)' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -234,8 +234,8 @@ function RadarRings() {
       {/* Premium ambient background glow behind radar */}
       <div style={{
         position: 'absolute',
-        width: 380,
-        height: 380,
+        width: 320,
+        height: 320,
         borderRadius: '50%',
         background: 'radial-gradient(circle, var(--accent-subtle) 0%, transparent 70%)',
         filter: 'blur(36px)',
@@ -247,10 +247,10 @@ function RadarRings() {
           key={i}
           style={{
             position: 'absolute',
-            width: i * 180, height: i * 180,
+            width: i * 146, height: i * 146,
             borderRadius: '50%',
             border: '1.5px solid var(--border-bright)',
-            boxShadow: '0 0 15px rgba(255, 59, 48, 0.02)',
+            boxShadow: '0 0 15px rgba(var(--accent-rgb), 0.02)',
             zIndex: 1
           }}
           animate={{
@@ -265,13 +265,13 @@ function RadarRings() {
       <motion.div
         style={{
           position: 'absolute',
-          width: 560, height: 560,
+          width: 440, height: 440,
           borderRadius: '50%',
-          background: 'conic-gradient(from 0deg, var(--border-bright) 0deg, transparent 55deg, transparent 360deg)',
+          background: 'conic-gradient(from 0deg, rgba(var(--accent-rgb), 0.5) 0deg, rgba(var(--accent-rgb), 0.15) 60deg, rgba(var(--accent-rgb), 0.02) 120deg, transparent 180deg, transparent 360deg)',
           zIndex: 1
         }}
         animate={{ rotate: 360 }}
-        transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
+        transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}
       />
     </div>
   );
@@ -386,12 +386,29 @@ function DropZone({ onFiles, targetPeer }: { onFiles: (files: File[]) => void; t
         padding: '48px 32px', textAlign: 'center', cursor: 'pointer',
         transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         boxShadow: dragging ? '0 0 24px var(--border)' : 'none',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
       <input ref={inputRef} type="file" multiple style={{ display: 'none' }}
         onChange={(e) => { if (e.target.files?.length) onFiles(Array.from(e.target.files)); }} />
-      <motion.div animate={{ scale: dragging ? 1.08 : 1, y: dragging ? -4 : 0 }} style={{ fontSize: 44, marginBottom: 14 }}>
-        {dragging ? '📂' : '📁'}
+      <motion.div
+        animate={{ scale: dragging ? 1.08 : 1, y: dragging ? -4 : 0 }}
+        style={{ color: 'var(--accent)', marginBottom: 14, filter: 'drop-shadow(0 0 8px var(--accent-glow))', display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+      >
+        {dragging ? (
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 22h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3.5l-2-3H6a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2z" />
+            <path d="M2 10h20" />
+          </svg>
+        ) : (
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+        )}
       </motion.div>
       <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
         {targetPeer ? `Drop files to send to ${targetPeer.name}` : 'Select a device first'}
@@ -473,6 +490,36 @@ export default function HomePage() {
     localStorage.setItem('theme', next);
   };
 
+  // Accent Color Management
+  const [accent, setAccent] = useState<'red' | 'orange' | 'green' | 'blue'>('red');
+  const [showAccentDropdown, setShowAccentDropdown] = useState(false);
+  const accentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('nexusAccent') as 'red' | 'orange' | 'green' | 'blue';
+    if (saved) {
+      setAccent(saved);
+      document.documentElement.setAttribute('data-accent', saved);
+    }
+  }, []);
+
+  const changeAccent = (val: 'red' | 'orange' | 'green' | 'blue') => {
+    setAccent(val);
+    document.documentElement.setAttribute('data-accent', val);
+    localStorage.setItem('nexusAccent', val);
+    setShowAccentDropdown(false);
+  };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (accentRef.current && !accentRef.current.contains(e.target as Node)) {
+        setShowAccentDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).slice(2);
     setToasts((t) => [...t, { id, message, type }]);
@@ -520,21 +567,16 @@ export default function HomePage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)', transition: 'background-color 0.3s ease, color 0.3s ease' }}>
       {/* ── Header ── */}
-      <header style={{
-        height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 24px', borderBottom: '1px solid var(--border)',
-        background: 'var(--bg-surface)', backdropFilter: 'blur(24px) saturate(180%)',
-        position: 'sticky', top: 0, zIndex: 50,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--accent)', filter: 'drop-shadow(0 0 5px var(--accent-glow))', flexShrink: 0 }}>
-            <path d="M5 12a7 7 0 0 1 14 0" />
-            <path d="M12 9v4" />
-            <path d="M12 17h.01" />
-            <path d="M1.34 10a12 12 0 0 1 21.32 0" />
+      <header className="pill-header">
+        <div className="logo-container">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, overflow: 'visible' }}>
+            <circle cx="12" cy="18" r="1.5" fill="var(--accent)" style={{ filter: 'drop-shadow(0 0 3px var(--accent-glow))' }} />
+            <path d="M8.5 14.5a5 5 0 0 1 7 0" className="wifi-wave wifi-wave-1" />
+            <path d="M5 11a10 10 0 0 1 14 0" className="wifi-wave wifi-wave-2" />
+            <path d="M1.5 7.5a15 15 0 0 1 21 0" className="wifi-wave wifi-wave-3" />
           </svg>
-          <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.03em', fontFamily: 'var(--font-mono)' }}>
-            Not<span style={{ color: 'var(--accent)' }}>AirBeam</span>
+          <span className="shimmer-logo" style={{ fontSize: 19 }}>
+            NotAirBeam
           </span>
         </div>
 
@@ -556,6 +598,7 @@ export default function HomePage() {
           {/* Active transfers badge */}
           {activeTransfers.length > 0 && (
             <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} onClick={() => setShowTransfers((v) => !v)}
+              className="header-control-btn"
               style={{ background: 'var(--accent-subtle)', border: '1px solid var(--accent)', borderRadius: 20,
                 padding: '4px 12px', fontSize: 11, color: 'var(--accent)', fontWeight: 700, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-mono)' }}>
@@ -565,14 +608,59 @@ export default function HomePage() {
             </motion.button>
           )}
 
+          {/* Accent Color Switcher */}
+          <div ref={accentRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <button
+              id="accentToggle"
+              onClick={() => setShowAccentDropdown(!showAccentDropdown)}
+              className="header-control-btn"
+              style={{
+                background: 'rgba(var(--accent-rgb), 0.18)',
+                border: '1px solid var(--accent)',
+                cursor: 'pointer',
+                width: 32, height: 32, borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 0 10px rgba(var(--accent-rgb), 0.35)',
+              }}
+              title="Change Accent Color"
+            >
+              {/* Active Color Dot Swatch */}
+              <span style={{ width: 12, height: 12, borderRadius: '50%', background: 'var(--accent)', border: '1.5px solid var(--bg-base)', boxShadow: '0 0 8px rgba(var(--accent-rgb), 0.5)', display: 'block', transition: 'background 0.3s ease' }}></span>
+            </button>
+
+            {/* Accent Dropdown Menu */}
+            <div
+              id="accentDropdown"
+              className={`accent-dropdown ${showAccentDropdown ? 'active' : ''}`}
+            >
+              <button className={`accent-opt ${accent === 'red' ? 'active' : ''}`} onClick={() => changeAccent('red')}>
+                <span className="accent-swatch" style={{ background: '#e30000', width: 12, height: 12, borderRadius: '50%', border: '1px solid rgba(0, 0, 0, 0.15)', flexShrink: 0 }}></span>
+                Nothing Red
+              </button>
+              <button className={`accent-opt ${accent === 'orange' ? 'active' : ''}`} onClick={() => changeAccent('orange')}>
+                <span className="accent-swatch" style={{ background: '#f97316', width: 12, height: 12, borderRadius: '50%', border: '1px solid rgba(0, 0, 0, 0.15)', flexShrink: 0 }}></span>
+                Warmer Orange
+              </button>
+              <button className={`accent-opt ${accent === 'green' ? 'active' : ''}`} onClick={() => changeAccent('green')}>
+                <span className="accent-swatch" style={{ background: '#22c55e', width: 12, height: 12, borderRadius: '50%', border: '1px solid rgba(0, 0, 0, 0.15)', flexShrink: 0 }}></span>
+                Forest Green
+              </button>
+              <button className={`accent-opt ${accent === 'blue' ? 'active' : ''}`} onClick={() => changeAccent('blue')}>
+                <span className="accent-swatch" style={{ background: '#0ea5e9', width: 12, height: 12, borderRadius: '50%', border: '1px solid rgba(0, 0, 0, 0.15)', flexShrink: 0 }}></span>
+                Ocean Blue
+              </button>
+            </div>
+          </div>
+
           {/* Theme Toggle Button */}
           <button
             onClick={toggleTheme}
+            className="header-control-btn"
             style={{
               background: 'var(--bg-overlay)', border: '1px solid var(--border-bright)', cursor: 'pointer',
               width: 32, height: 32, borderRadius: '50%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--text-primary)', transition: 'all 0.2s',
+              color: 'var(--text-primary)',
             }}
             title="Toggle Light/Dark Theme"
           >
@@ -592,6 +680,7 @@ export default function HomePage() {
 
           {/* Device Settings Trigger */}
           <button onClick={() => setShowSettings(true)}
+            className="header-control-btn"
             style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-overlay)',
               border: '1px solid var(--border-bright)', borderRadius: '99px', padding: '4px 12px 4px 6px', cursor: 'pointer' }}>
             <DeviceAvatar peer={{ id: device.clientId, name: device.name, type: device.type, os: device.os, online: true, joinedAt: '' }} size={24} />
@@ -603,25 +692,39 @@ export default function HomePage() {
       {/* ── Main content ── */}
       <main className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 24px 40px', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
 
-        <div style={{ textAlign: 'center', marginTop: 40, marginBottom: 30 }}>
-          <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            style={{ fontSize: 'clamp(24px, 3.5vw, 34px)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: 10 }}>
-            {peers.length === 0 ? (
-              <>Searching for <span style={{ color: 'var(--accent)' }}>nearby</span> devices…</>
-            ) : (
-              <>Found <span style={{ color: 'var(--accent)' }}>{peers.length}</span> device{peers.length > 1 ? 's' : ''} nearby</>
-            )}
-          </motion.h1>
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
-            style={{ fontSize: 14, color: 'var(--text-secondary)', maxWidth: 460, margin: '0 auto' }}>
-            All transfers happen directly on your local network · Zero internet required
-          </motion.p>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 15, marginBottom: 25 }}>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: '16px 36px',
+              borderRadius: '24px',
+              width: 'fit-content',
+              textAlign: 'center'
+            }}
+            className="sub-panel"
+          >
+            <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              style={{ fontSize: 'clamp(20px, 2.5vw, 26px)', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: 6, fontFamily: "'Inter', sans-serif" }}>
+              {peers.length === 0 ? (
+                <>Searching for <span style={{ color: 'var(--accent)' }}>nearby</span> devices…</>
+              ) : (
+                <>Found <span style={{ color: 'var(--accent)' }}>{peers.length}</span> device{peers.length > 1 ? 's' : ''} nearby</>
+              )}
+            </motion.h1>
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }}
+              style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 auto', whiteSpace: 'nowrap' }}>
+              All transfers happen directly on your local network · Zero internet required
+            </motion.p>
+          </motion.div>
         </div>
-
 
         <div className="dashboard-grid">
           {/* Column Left: Radar Orb System */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+          <div className="dashboard-card" style={{ alignItems: 'center', justifyContent: 'center' }}>
             {/* Radar orbit visual system */}
             <div className="radar-container" style={{ position: 'relative', minHeight: 440, height: 440, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible', flexShrink: 0 }}>
               <RadarRings />
@@ -632,9 +735,9 @@ export default function HomePage() {
                   animate={{
                     scale: [1, 1.03, 1],
                     boxShadow: [
-                      '0 0 10px 2px rgba(255, 59, 48, 0.1)',
-                      '0 0 28px 8px rgba(255, 59, 48, 0.25)',
-                      '0 0 10px 2px rgba(255, 59, 48, 0.1)'
+                      '0 0 10px 2px rgba(255, 0, 0, 0.1)',
+                      '0 0 28px 8px rgba(255, 0, 0, 0.25)',
+                      '0 0 10px 2px rgba(255, 0, 0, 0.1)'
                     ]
                   }}
                   transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
@@ -692,16 +795,16 @@ export default function HomePage() {
           </div>
 
           {/* Column Right: Controls & Transfers */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24, width: '100%' }}>
+          <div className="dashboard-card" style={{ gap: 24 }}>
             {/* ── Selected Peer + File Drop Zone ── */}
-            <AnimatePresence>
-              {selectedPeer && (
+            <AnimatePresence mode="wait">
+              {selectedPeer ? (
                 <motion.section
                   key="dropzone"
-                  initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}
-                  style={{ width: '100%' }}
+                  initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}
+                  style={{ width: '100%', display: 'flex', flexDirection: 'column', flex: 1 }}
                 >
-                  <div className="glass" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', marginBottom: 16 }}>
+                  <div className="glass selected-device-panel" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', marginBottom: 16 }}>
                     <DeviceAvatar peer={selectedPeer} size={40} />
                     <div>
                       <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{selectedPeer.name}</p>
@@ -712,6 +815,24 @@ export default function HomePage() {
                   </div>
                   <DropZone onFiles={handleFiles} targetPeer={selectedPeer} />
                 </motion.section>
+              ) : (
+                <motion.div
+                  key="placeholder"
+                  initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: 340, textAlign: 'center' }}
+                >
+                  <div style={{ color: 'var(--accent)', marginBottom: 16, filter: 'drop-shadow(0 0 8px var(--accent-glow))', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="17 8 12 3 7 8" />
+                      <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                  </div>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Ready to Transfer</p>
+                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 280, lineHeight: 1.5 }}>
+                    Select a nearby device on the radar to start dragging & dropping files.
+                  </p>
+                </motion.div>
               )}
             </AnimatePresence>
 
@@ -720,13 +841,14 @@ export default function HomePage() {
               {(showTransfers || transfers.length > 0) && transfers.length > 0 && (
                 <motion.section
                   initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                  style={{ width: '100%' }}
+                  style={{ width: '100%', borderTop: '1px solid var(--border)', paddingTop: 20 }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                     <h2 style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-secondary)', letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
                       Transfers
                     </h2>
                     <button onClick={() => useTransferStore.getState().clearCompleted()}
+                      className="clear-completed-btn"
                       style={{ fontSize: 11, color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Clear completed
                     </button>
@@ -737,14 +859,6 @@ export default function HomePage() {
                 </motion.section>
               )}
             </AnimatePresence>
-
-            {/* ── Help Prompt ── */}
-            {!selectedPeer && peers.length > 0 && (
-              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-                style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', marginTop: 12, fontFamily: 'var(--font-mono)' }}>
-                SELECT A DEVICE ABOVE TO SHARE FILES
-              </motion.p>
-            )}
           </div>
         </div>
       </main>
