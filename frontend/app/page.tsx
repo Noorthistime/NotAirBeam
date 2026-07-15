@@ -876,7 +876,7 @@ export default function HomePage() {
       </AnimatePresence>
 
       {/* ── Toast messaging notifier ── */}
-      <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 200, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 320 }}>
+      <div className="toast-container" style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 200, display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 320 }}>
         <AnimatePresence>
           {toasts.map((t) => (
             <Toast key={t.id} message={t.message} type={t.type} onClose={() => removeToast(t.id)} />

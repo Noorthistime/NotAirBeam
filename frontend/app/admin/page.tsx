@@ -92,7 +92,7 @@ export default function AdminPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-bright"
+          className="glass-bright admin-login-card"
           style={{ maxWidth: 400, width: '100%', padding: '40px 32px', textAlign: 'center' }}
         >
           <div style={{ marginBottom: 24 }}>
@@ -135,7 +135,7 @@ export default function AdminPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-base)', color: 'var(--text-primary)', transition: 'background-color 0.3s ease, color 0.3s ease' }}>
       {/* ── Header ── */}
-      <header style={{
+      <header className="admin-header" style={{
         height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 24px', borderBottom: '1px solid var(--border)',
         background: 'var(--bg-surface)', backdropFilter: 'blur(24px) saturate(180%)',
@@ -158,13 +158,13 @@ export default function AdminPage() {
       </header>
 
       {/* ── Main content ── */}
-      <main style={{ padding: '40px 24px', maxWidth: 1000, margin: '0 auto', width: '100%' }}>
+      <main className="admin-main" style={{ padding: '40px 24px', maxWidth: 1000, margin: '0 auto', width: '100%' }}>
         
         {adminStats ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="nothing-glass"
+            className="nothing-glass admin-analytics"
             style={{ padding: '24px 32px', border: '1.5px dashed var(--accent)' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
@@ -179,7 +179,7 @@ export default function AdminPage() {
               </span>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 32 }}>
+            <div className="admin-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20, marginBottom: 32 }}>
               <div style={{ padding: 20, background: 'var(--bg-overlay)', border: '1px solid var(--border)', borderRadius: 12 }}>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)', letterSpacing: '0.05em' }}>Active Devices</div>
                 <div style={{ fontSize: 36, fontWeight: 800, color: 'var(--accent)', marginTop: 8, lineHeight: 1 }}>{adminStats.activePeerCount}</div>
@@ -199,7 +199,7 @@ export default function AdminPage() {
             </h3>
 
             {adminStats.activePeers && adminStats.activePeers.length > 0 ? (
-              <div style={{ overflowX: 'auto', background: 'var(--bg-overlay)', borderRadius: 12, border: '1px solid var(--border)' }}>
+              <div className="admin-table-wrapper" style={{ overflowX: 'auto', background: 'var(--bg-overlay)', borderRadius: 12, border: '1px solid var(--border)' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left', fontFamily: 'var(--font-mono)' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border-bright)', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.2)' }}>
